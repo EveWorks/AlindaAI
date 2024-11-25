@@ -1,43 +1,65 @@
-# Alinda Documentation
 
-## Introduction
+# 🎓 Alinda Documentation 🚀
 
-Alinda is a robust AI model designed to handle queries related to various academic and technical subjects. She can create charts, run code, do advanced data analytics, read/analyze stocks—basically, she's your own personal data scientist / expert maths professor. This documentation provides an overview of how to set up and use the Alinda API, including examples of how to make queries and handle responses.
+## 📘 Introduction
 
-## What She is Designed For
+Alinda is a powerful AI model designed to handle queries related to various academic and technical subjects. 💡 Whether you're exploring advanced data analytics, coding, or solving complex math problems, Alinda has you covered! She can create charts 📊, run code 💻, and even analyze stocks 📈. In essence, she's your personal data scientist and expert math professor rolled into one! 🎓
 
-University Students & Professionals Learning Maths and Computer Science. She excells at that, and she can do much more as well. Below are some random tasks I assigned Alinda to do as a Data Scientist for CS Students and Some Example Maths Equations to Visualize.
-
-## Some Visual Outputs :
-
-![Maths Visual Learning](image-1.png)
-
-![10 Popular Stocks Regression](images/all_stocks_linear_regression_normalized.png)
-
-![Linear Regression](images/intc_linear_regression.png)
-
-![XGBoost on CISCO Stock](image.png)
+This documentation will guide you on how to set up and use the Alinda API, along with examples of how to make queries and handle responses.
 
 
-## Setup
 
-### Dependencies
+---
 
-Ensure you have the following dependencies installed:
+## 🎯 What She is Designed For
 
-- `fastapi`
-- `pydantic`
-- `uvicorn`
+Alinda is ideal for **University Students** & **Professionals** learning **Math** and **Computer Science**. 📚🔍 She excels at these fields and can help you with much more. Here are a few tasks Alinda can tackle:
 
-You can install them using pip:
+- **Data Science Projects** for CS students 🧑‍💻
+- **Math Visualizations** for complex equations 📐
+- **Stock Analysis & Predictions** 💹
+
+Below are some cool examples of what Alinda can do!
+
+---
+
+## 🖼 Some Visual Outputs:
+
+Here’s a look at some of the awesome visualizations Alinda can create for you:
+
+1. **Math Visual Learning**:  
+   ![Maths Visual Learning](image-1.png)
+
+2. **Stock Market Regression (Top 10 Stocks)**:  
+   ![10 Popular Stocks Regression](images/all_stocks_linear_regression_normalized.png)
+
+3. **Linear Regression on Intel Stock**:  
+   ![Linear Regression](images/intc_linear_regression.png)
+
+4. **XGBoost Model for Cisco Stock**:  
+   ![XGBoost on CISCO Stock](image.png)
+
+---
+
+## ⚙️ Setup
+
+### 🛠️ Dependencies
+
+Make sure you have the following dependencies installed:
+
+- `fastapi` 🔥
+- `pydantic` 📦
+- `uvicorn` 🚀
+
+Install them with pip:
 
 ```bash
 pip install fastapi pydantic uvicorn
 ```
 
-To be completed added there are a lot.
+*(More dependencies coming soon!)*
 
-### Importing Modules
+### 📥 Importing Modules
 
 Import the necessary modules and classes:
 
@@ -53,7 +75,7 @@ import uvicorn
 from fastapi.responses import StreamingResponse
 ```
 
-### FastAPI Configuration
+### 🚀 FastAPI Configuration
 
 Initialize the FastAPI application:
 
@@ -61,11 +83,13 @@ Initialize the FastAPI application:
 app = FastAPI()
 ```
 
-## Data Models
+---
 
-### QueryRequest
+## 🧠 Data Models
 
-The `QueryRequest` class defines the structure of the request payload:
+### 🔍 QueryRequest
+
+The `QueryRequest` class defines the structure of the request payload for querying Alinda:
 
 ```python
 class QueryRequest(BaseModel):
@@ -81,15 +105,17 @@ class QueryRequest(BaseModel):
     messages: list
 ```
 
-## Endpoints
+---
 
-### `/query/`
+## 🔧 Endpoints
+
+### 🌐 `/query/`
 
 This endpoint handles standard queries to the Alinda AI model.
 
 #### Request
 
-- **Method**: POST
+- **Method**: `POST` ✍️
 - **URL**: `/query/`
 - **Headers**:
   - `Content-Type: application/json`
@@ -127,57 +153,29 @@ This endpoint handles standard queries to the Alinda AI model.
 
 #### Response
 
-The response will be a JSON object containing the AI model's response to the query.
+The response will be a JSON object containing Alinda’s answer to your query. 📬
 
-### `/streaming-query/`
+---
 
-This endpoint handles streaming queries to the Alinda AI model.
+### 📡 `/streaming-query/`
+
+For real-time, streaming queries, use this endpoint to get continuous updates! 🌊
 
 #### Request
 
-- **Method**: POST
+- **Method**: `POST`
 - **URL**: `/streaming-query/`
 - **Headers**:
   - `Content-Type: application/json`
-- **Body**:
+- **Body**: Similar to `/query/`, but allows for continuous feedback. ⚡
 
-```json
-{
-  "query": "What is the derivative of x^2?",
-  "full_name": "Muneeb Ahmad",
-  "major": "Computer Science",
-  "degree": "Bachelor",
-  "school": "Harvard University",
-  "year": "2023",
-  "interests": ["Machine Learning", "Deep Learning", "Computer Vision", "Mathematics", "Algorithms"],
-  "wants_to_learn": ["Mathematics", "Computer Science", "Machine Learning", "Deep Learning", "Computer Vision", "Algorithms"],
-  "previous_progress": {
-    "differential_equations": "50%",
-    "linear_algebra": "75%",
-    "calculus": "100%",
-    "probability_theory": "25%",
-    "statistics": "50%",
-    "machine_learning": "25%",
-    "tensorflow": "50%",
-    "streamlit": "25%"
-  },
-  "messages": [
-    {
-      "role": "assistant",
-      "type": "message",
-      "content": "The derivative of \\( x^2 \\) with respect to \\( x \\) can be calculated using the power rule..."
-    }
-  ]
-}
-```
+---
 
-#### Response
+## 🧩 Example Usage
 
-The response will be a streaming response containing the AI model's response to the query. The streaming response allows for real-time updates and continuous data flow, making it ideal for scenarios where immediate feedback is required.
+### 💬 Making a Query
 
-## Example Usage
-
-### Making a Query
+Here's how to make a query to Alinda:
 
 ```python
 profile_information =  {
@@ -199,7 +197,7 @@ profile_information =  {
     }
 }
 
-messages = [{'role': 'assistant', 'type': 'message', 'content': "The derivative of \\( x^2 \\) with respect to \\( x \\) can be calculated using the power rule of differentiation. According to the power rule, if you have a function \\( f(x) = x^n \\), the derivative \\( f'(x) \\) is given by:\n\n\\[\nf'(x) = n \\cdot x^{n-1}\n\\]\n\nFor \\( f(x) = x^2 \\):\n\n1. Here, \\( n = 2 \\).\n2. Applying the power rule:\n\n\\[\nf'(x) = 2 \\cdot x^{2-1} = 2x\n\\]\n\nThus, the derivative of \\( x^2 \\) is \\( 2x \\).\n\nLet me know what you'd like to do next."}]
+messages = [{'role': 'assistant', 'type': 'message', 'content': "The derivative of \\( x^2 \\) with respect to \\( x \\) can be calculated using the power rule of differentiation..."}]
 
 query_request = QueryRequest(
     query='What is the derivative of x^2?',
@@ -215,7 +213,11 @@ query_request = QueryRequest(
 )
 
 response = query(query_request)
+```
 
+### 🔄 Second Query Example
+
+```python
 second_query = QueryRequest(
     query='What is the derivative of x^3?',
     full_name='Muneeb Ahmad',
@@ -234,9 +236,11 @@ response_v2 = query(second_query)
 print(response_v2)
 ```
 
-## Queries for Backend Developers
+---
 
-### 1. Create a Chart for NVIDIA and Apple Stocks for the past 10 years
+## 🖥️ Queries for Backend Developers
+
+### 1. Create a Chart for NVIDIA and Apple Stocks 📉
 
 ```json
 {
@@ -256,7 +260,7 @@ print(response_v2)
 }
 ```
 
-### 2. Find the Derivative of x**2 and Plot It
+### 2. Find the Derivative of x² and Plot It 🧮
 
 ```json
 {
@@ -276,47 +280,9 @@ print(response_v2)
 }
 ```
 
-### 3. How to Find the Differential of an Equation Show Visually
+---
 
-```json
-{
-  "query": "How to find the differential of an equation show visually.",
-  "full_name": "Backend Developer",
-  "major": "Computer Science",
-  "degree": "Bachelor",
-  "school": "Harvard University",
-  "year": "2023",
-  "interests": ["Calculus", "Data Visualization"],
-  "wants_to_learn": ["Calculus", "Data Visualization"],
-  "previous_progress": {
-    "calculus": "100%",
-    "data_visualization": "75%"
-  },
-  "messages": []
-}
-```
-
-### 4. Create a Quiz on Streamlit
-
-```json
-{
-  "query": "Create a quiz on Streamlit.",
-  "full_name": "Backend Developer",
-  "major": "Computer Science",
-  "degree": "Bachelor",
-  "school": "Harvard University",
-  "year": "2023",
-  "interests": ["Web Development", "Streamlit"],
-  "wants_to_learn": ["Web Development", "Streamlit"],
-  "previous_progress": {
-    "web_development": "50%",
-    "streamlit": "25%"
-  },
-  "messages": []
-}
-```
-
-## Running the Application
+## 🚀 Running the Application
 
 To run the FastAPI application, use the following command:
 
@@ -324,8 +290,17 @@ To run the FastAPI application, use the following command:
 uvicorn main:app --reload
 ```
 
-This will start the server on `http://localhost:6969`.
+This will start the server at `http://localhost:6969`. 🌍
 
-## Conclusion
+---
 
-This documentation provides a comprehensive guide to setting up and using the Alinda API. For further details, refer to the source code and additional documentation provided with the Alinda project.
+## Built By
+
+Muneeb Ahmad (C) Eve Works 2024 - muneeb@muneeb.co
+
+## 🎉 Conclusion
+
+That’s it! 🎉 This documentation will help you get started with using the Alinda API. If you need more details, check out the source code and further documentation for all the advanced features. Happy coding! 🚀💻
+
+---
+
