@@ -19,11 +19,28 @@ curl -X POST "http://localhost:6969/query/" \
     "tensorflow": "50%",
     "streamlit": "25%"
   },
-  "messages": [
-    {
-      "role": "assistant",
-      "type": "message",
-      "content": "The derivative of \\( x^2 \\) with respect to \\( x \\) can be calculated using the power rule..."
-    }
-  ]
+  {
+    "query": "hello",
+    "full_name": "Mitul Sarvaiya",
+    "major": "computer science",
+    "degree": "Computer Science",
+    "school": "VNSGU",
+    "year": "2024",
+    "interests": [
+        "data structure"
+    ],
+    "wants_to_learn": [],
+    "previous_progress": {},
+    "messages": [
+        {
+            "role": "user",
+            "type": "message",
+            "content": "hello"
+        },
+        {
+            "role": "assistant",
+            "type": "message",
+            "content": "Hello, Mitul! How can I assist you today? If you have any questions or need help with something specific, feel free to let me know!"
+        }
+    ]
 }'

@@ -1,28 +1,46 @@
-from alinda_agent import LoadProfile
-from fastapi import FastAPI
+from alinda_agent import LoadProfile, BuildPersonalizedProfile
+from fastapi import FastAPI, Request
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional, Dict
+from alinda_agent import SummarizeAgent
 import os
 import sys
 import argparse
 import uvicorn
 from fastapi.responses import StreamingResponse
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+
 
 # FastAPI Configuration
 
 app = FastAPI()
 
+
 class QueryRequest(BaseModel):
     query: str
     full_name: str
     major: str
-    degree: str
-    school: str
+    degree: Optional[str] = ""  # Made optional, default is None
+    school: Optional[str] = ""  # Made optional, default is None
     year: str
-    interests: List[str]
+    interests: Optional[List[str]] = []  # Made optional, default is an empty list
     wants_to_learn: List[str]
-    previous_progress: dict
+    previous_progress: Dict
     messages: list
+
+class MessageObject(BaseModel):
+  message: str
+  role: str
+
+
+@app.middleware("http")
+async def log_request(request: Request, call_next):
+    body = await request.body()  # Get the raw request body
+    logging.debug(f"Request Body: {body.decode()}")
+    response = await call_next(request)
+    return response
 
 
 @app.post("/query/")
@@ -108,60 +126,37 @@ def streaming_query(query_request: QueryRequest, summary="Query Alinda AI Model 
 
 
     
-    """
-    profile_information =  {
-        'major': 'Computer Science',
-        'degree': 'Bachelor',
-        'school': 'Harvard University',
-        'year': '2023',
-        'interests': ['Machine Learning', 'Deep Learning', 'Computer Vision', 'Mathematics', 'Algorithms'],
-        'wants_to_learn': ['Mathematics', 'Computer Science', 'Machine Learning', 'Deep Learning', 'Computer Vision', 'Algorithms'],
-        'previous_progress': {
-            'differential_equations': '50%',
-            'linear_algebra': '75%',
-            'calculus': '100%',
-            'probability_theory': '25%',
-            'statistics': '50%',
-            'machine_learning': '25%',
-            'tensorflow': '50%',
-            'streamlit': '25%',
-        }
-    }
-    
-    messages = [{'role': 'assistant', 'type': 'message', 'content': "The derivative of \\( x^2 \\) with respect to \\( x \\) can be calculated using the power rule of differentiation. According to the power rule, if you have a function \\( f(x) = x^n \\), the derivative \\( f'(x) \\) is given by:\n\n\\[\nf'(x) = n \\cdot x^{n-1}\n\\]\n\nFor \\( f(x) = x^2 \\):\n\n1. Here, \\( n = 2 \\).\n2. Applying the power rule:\n\n\\[\nf'(x) = 2 \\cdot x^{2-1} = 2x\n\\]\n\nThus, the derivative of \\( x^2 \\) is \\( 2x \\).\n\nLet me know what you'd like to do next."}]
-    
-    query_request = QueryRequest(
-        query='What is the derivative of x^2?',
-        full_name='Muneeb Ahmad',
-        major=profile_information['major'],
-        degree=profile_information['degree'],
-        school=profile_information['school'],
-        year=profile_information['year'],
-        interests=profile_information['interests'],
-        wants_to_learn=profile_information['wants_to_learn'],
-        previous_progress=profile_information['previous_progress'],
-        messages=messages
-    )
-    
-    response = query(query_request)
-    
-    second_query = QueryRequest(
-        query='What is the derivative of x^3?',
-        full_name='Muneeb Ahmad',
-        major=profile_information['major'],
-        degree=profile_information['degree'],
-        school=profile_information['school'],
-        year=profile_information['year'],
-        interests=profile_information['interests'],
-        wants_to_learn=profile_information['wants_to_learn'],
-        previous_progress=profile_information['previous_progress'],
-        messages=response
-    )
-    
-    response_v2 = query(second_query)
-    
-    print(response_v2)
-    
-    """
-    
+@app.post('/personalize-using-session/')
+def personalize_using_session(query_request: QueryRequest, summary="Personalize Alinda AI Model using Session Data."):
+
+  personlize_agent = BuildPersonalizedProfile(query_request.model_dump(), messages=query_request.messages)
+  return personlize_agent.build_profile()  
+
+
+@app.post("/summarize-response")
+def summarize_response(message_object: MessageObject, summary="Summarize the Response from Alinda AI Model for Speech Tasks."):
+  
+  """
+  Example CURL Request:
+  ```  
+    curl -X POST "http://localhost:6969/summarize-response" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "message": "The derivative of x^2 with respect to x can be calculated using the power rule...",
+        "role": "assistant"
+      }'
+  ```
+  """
+  
+  message_content = message_object.message
+  role = message_object.role
+  
+  try:
+    response =  SummarizeAgent(message_content, role).summarize_openai()
+  except Exception as e:
+    response = {"error": str(e)}
+  
+  return response
+  
+  
     

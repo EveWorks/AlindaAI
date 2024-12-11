@@ -294,6 +294,19 @@ This will start the server at `http://localhost:6969`. 🌍
 
 ---
 
+## Security & Sandboxing
+
+Below are some of the services we can integrate in the next release for true sandboxing & running the code.
+
+- https://github.com/vndee/llm-sandbox (Brand New Project)
+- https://github.com/tjmlabs/AgentRun (Old Project - No LTS)
+- E2B Integration (Up & Running)
+- Deploy AlindaAI Session inside Docker Instance Itself (Simple & Effective)
+
+Currently AlindaAI Features Integration with `guardrails` to ensure no offensive or malicious code is executed.
+
+
+
 ## Built By
 
 Muneeb Ahmad (C) Eve Works 2024 - muneeb@muneeb.co
