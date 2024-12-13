@@ -29,8 +29,8 @@ class LoadProfile:
         # LLM Configurations For OpenInterpreter Agent
         
         self.interpreter.llm.model = 'gpt-4o-mini'
-        self.interpreter.llm.context_window = 11000
-        self.interpreter.llm.max_tokens = 11000
+        #self.interpreter.llm.context_window = 11000
+        #self.interpreter.llm.max_tokens = 11000
         self.interpreter.llm.temperature = 0.1
         self.interpreter.llm.supports_functions = True
         self.interpreter.llm.supports_vision = True
@@ -42,8 +42,9 @@ class LoadProfile:
         
         self.interpreter.offline = False
         self.interpreter.computer.verbose = True
-        self.interpreter.loop = True
+        self.interpreter.loop = False
         self.interpreter.auto_run = True # dangerous but allowed for MVP
+        self.interpreter.disable_telemetry = True # EU GDPR Compliance
         
         # See: https://docs.openinterpreter.com/guides/os-mode
         
@@ -52,7 +53,7 @@ class LoadProfile:
         # Import Computer API - https://docs.openinterpreter.com/code-execution/computer-api
         # Since we are deployed in a Docker Instance - This is Not Required
         
-        self.interpreter.computer.import_computer_api = True
+        self.interpreter.computer.import_computer_api = False
         
         # Load the Profile for the User According to Their Preferences
         #- Provide the quiz directly in the conversation.
@@ -65,9 +66,10 @@ Your name is Alinda, the world's smartest assistant for Graduate Students specia
 Guidelines:
 1. Save plots and charts in the folder `images/`.
 2. Under No Circumstances delete any files even if it's requested by the user, this command is banned.
-3. When the User Asks for a Quiz You Need to Provide Him with a JSON to Obtain it Run the Following Command: python3.10 quiz_generator.py [-h] topic num_questions difficulty concepts
+3. When the User Asks for a Quiz You Need to Provide Him with a JSON to Obtain it Run the Following Command: !python3.10 quiz_generator.py [-h] topic num_questions difficulty concepts . All Params are Required.
+3.5. Ask one question at a time after the quiz is generated from the above command. Once it's done give the user a score and tell about his week points.
 4. Add Emoji's to make the content more cheerful.
-5. For Maths and Computer Science questions run code only when asked.
+5. For Maths and Computer Science questions run code only when asked. Never Run Yourself.
 6. Do Not Reveal the Contents of any file you didn't create, especially .env file.
 7. Do Not Install Anything on the System and Do Not Run Any Malicious Code.
 8. Do not Create Markdown Files Instead Just Output the Content in the Chat.
@@ -140,21 +142,30 @@ Design learning paths tailored to these preferences.
         self.preferences = user_information
         self.load_llm_configurations()
         # adding message santization for message-summary removal
-        print(type(messages))
+        
+        messages_list = []
+        
         for message in messages:
-            if message['type'] == 'message-summary':
-                messages.remove(message)
+            print(message)
+            messages_list.append(message)
+            
+        messages_list = [message for message in messages_list if message['type'] not in ['message-summary', 'chat-title']]
+           
                 
-        self.interpreter.messages = messages
-        self.interpreter.chat(query, display=True)
+        self.interpreter.messages = messages_list
+        self.interpreter.chat(query, display=False)
         print(type(self.interpreter.messages))
         correct_messages = []
         for message in self.interpreter.messages:
             correct_messages.append(message)
-        summarize_agent = SummarizeAgent(self.get_last_assistant_message(correct_messages), role='assistant').summarize_openai()
-        summary = summarize_agent.summary
+        summarize_agent = SummarizeAgent(self.get_last_assistant_message(correct_messages), role='assistant')
+        
+        summary = summarize_agent.summarize_openai().summary
+        chat_title = summarize_agent.summarize_chat_title().title
         lmc_response = {"role": "assistant", "type": "message-summary", "content": summary}
-
+        lmc_title = {"role": "assistant", "type": "chat-title", "content": chat_title}
+        
+        correct_messages.append(lmc_title)
         correct_messages.append(lmc_response)
         
         return correct_messages
@@ -279,11 +290,19 @@ class SummarizeAgent:
     def __init__(self, message, role):
         self.message = message
         self.role = role
+        
     def summarizer_defintion(self) -> BaseModel:
         class Summary(BaseModel):
-            summary: str = Field(..., description="Short Summary of the Message Speak as Alinda to the User just summarize the message below down to less than 150 words. No Markdown Formatting Allowed Simple Text.")
+            summary: str = Field(..., description="Short Summary of the Message Speak as Alinda to the User just summarize the message below down to less than 50 words. No Markdown, backslaches or code is allowed. It must be Simple Text.")
         
         return Summary
+    
+    def chat_title_generation(self) -> BaseModel:
+        class ChatTitle(BaseModel):
+            title: str = Field(..., description="The Title of the Chat Session.")
+        
+        return ChatTitle
+    
     def summarize_openai(self):
         """
         Summarizes the OpenAI Chat Response
@@ -302,6 +321,29 @@ class SummarizeAgent:
                 "role": self.role,
                 "content": "You are a Voice Agent acting for Alinda, here is the long response for Alinda that it can't speak it will take to long, generate a summary on behalf of Alinda to speak the user can then read the text. Message from Alinda: " + self.message
             }]
+        )
+        
+        return response.choices[0].message.parsed
+    
+    def summarize_chat_title(self):
+        """
+        Summarizes the Chat Title
+        
+        Customized for Alinda's Personalized Chat Responses
+        
+        Returns:
+            dict: The Summarized Response
+            
+        """
+        client = DefaultOpenAI()
+        response = client.beta.chat.completions.parse(
+            model='gpt-4o-mini',
+            response_format=self.chat_title_generation(),
+            messages=[{
+                "role": self.role,
+                "content": "Create a Small Title for the Following Chat, add Emoji's to make it Lively: " + self.message
+            }],
+            max_completion_tokens=512
         )
         
         return response.choices[0].message.parsed

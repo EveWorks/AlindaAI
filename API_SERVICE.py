@@ -10,12 +10,19 @@ import uvicorn
 from fastapi.responses import StreamingResponse
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 
 
 # FastAPI Configuration
 
 app = FastAPI()
+
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn="https://49e1d3ec4fd1add3d268dd3611b1a0d8@o4508454576652288.ingest.de.sentry.io/4508454592774224",
+)
+
 
 
 class QueryRequest(BaseModel):
@@ -44,7 +51,7 @@ async def log_request(request: Request, call_next):
 
 
 @app.post("/query/")
-def query(query_request: QueryRequest, summary="Query Alinda AI Model for a Standard Response. Provide Previous Messages to Load Session into Memory."):
+async def query(query_request: QueryRequest, summary="Query Alinda AI Model for a Standard Response. Provide Previous Messages to Load Session into Memory."):
     """
     Example CURL Request:
 ```  
@@ -81,8 +88,8 @@ def query(query_request: QueryRequest, summary="Query Alinda AI Model for a Stan
     """
     profile = LoadProfile(query_request.full_name, preferences=query_request.model_dump())
     profile.load_llm_configurations()
-    return profile.fastapi_response(query_request.query, query_request.model_dump(), messages=query_request.messages)
-
+    answer = profile.fastapi_response(query_request.query, query_request.model_dump(), messages=query_request.messages)
+    return answer
 @app.post('/streaming-query/')
 def streaming_query(query_request: QueryRequest, summary="Query Alinda AI Model for a Streaming Response. Provide Previous Messages to Load Session into Memory."):
     """
@@ -159,4 +166,7 @@ def summarize_response(message_object: MessageObject, summary="Summarize the Res
   return response
   
   
-    
+@app.get('/loaderio-ef3a3bddeb682ef12664942c9141c92b.txt')
+def loaderio():
+    # send the loader.io verification .txt file
+    return StreamingResponse(open('loaderio-ef3a3bddeb682ef12664942c9141c92b.txt', 'rb'), media_type='text/plain')
