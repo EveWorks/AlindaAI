@@ -4,7 +4,7 @@ url = "http://localhost:6969/query/"
 headers = {"Content-Type": "application/json"}
 
 data = {
-    "query": "Write a Python script to send a query to the AlindaAI API.",
+    "query": "Create a Matplotlib Linear Chart Showing X to Y.",
     "full_name": "Muneeb Ahmad",
     "major": "computer science",
     "degree": "Computer Science",

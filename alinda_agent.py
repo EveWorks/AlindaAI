@@ -14,7 +14,22 @@ from pydantic import BaseModel, Field
 from typing import List, Dict, Any
 from pprint import pprint
 import json
+import time
+import getpass
+import platform
+from datetime import date
+import base64
+import uuid
 # loading the environment variables
+import re
+from unidecode import unidecode
+from deepgram import DeepgramClient, SpeakOptions
+import tiktoken
+def transliterate_and_remove_non_alphanumeric(input_string):
+    # Transliterate to ASCII
+    ascii_string = unidecode(input_string)
+    # Remove non-alphanumeric characters but keep spaces, commas, and full stops
+    return re.sub(r'[^a-zA-Z0-9 ,.]', '', ascii_string)
 
 load_dotenv()
 
@@ -24,24 +39,45 @@ class LoadProfile:
         self.preferences = preferences
         self.interpreter = interpreter
         
-    def load_llm_configurations(self):
+    def load_llm_configurations(self, is_groq=False, is_fireworks=False, is_togetherai=False, is_openai=True, is_azure_openai=False):
         
         # LLM Configurations For OpenInterpreter Agent
+        if is_groq:
+            self.interpreter.llm.model = 'llama-3.3-70b-versatile'
+            self.interpreter.llm.api_base = 'https://api.groq.com/openai/v1'
+            self.interpreter.llm.api_key = 'NOTHING_HERE'
+        if is_fireworks:
+            self.interpreter.llm.model = 'fireworks_ai/accounts/fireworks/models/llama-v3p3-70b-instruct'
+            self.interpreter.llm.api_base = 'https://api.fireworks.ai/inference/v1'
+            self.interpreter.llm.api_key = 'fw_3ZUagJUy1rEvTzhXE2Pj4yJ9'
+        if is_togetherai:
+            self.interpreter.llm.model = 'together_ai/meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo'
+            self.interpreter.llm.api_base = 'https://api.together.xyz/v1'
+            self.interpreter.llm.api_key = 'NOTHING_HERE'
+        if is_openai:
+            self.interpreter.llm.model = 'gpt-4o-mini'
         
-        self.interpreter.llm.model = 'gpt-4o-mini'
+        if is_azure_openai:
+
+            self.interpreter.llm.model = 'azure/gpt-4o-mini'
+            os.environ['AZURE_API_KEY'] = 'NOTHING_HERE'
+            os.environ['AZURE_API_BASE'] = 'NOTHING_HERE'
+            os.environ['AZURE_API_BASE'] = '2024-10-21'
+
         #self.interpreter.llm.context_window = 11000
         #self.interpreter.llm.max_tokens = 11000
         self.interpreter.llm.temperature = 0.1
         self.interpreter.llm.supports_functions = True
         self.interpreter.llm.supports_vision = True
-        self.interpreter.safe_mode = True
+        #self.interpreter.safe_mode = True
         self.interpreter.llm.max_budget = 0.001
-
+        
+        self.encoder = tiktoken.encoding_for_model("gpt-4o-mini")
         
         # OpenInterpreter Settings
         
         self.interpreter.offline = False
-        self.interpreter.computer.verbose = True
+        self.interpreter.computer.verbose = False
         self.interpreter.loop = False
         self.interpreter.auto_run = True # dangerous but allowed for MVP
         self.interpreter.disable_telemetry = True # EU GDPR Compliance
@@ -59,26 +95,60 @@ class LoadProfile:
         #- Provide the quiz directly in the conversation.
         #- Use the following command to generate quizzes: 
         #    `python3.10 quiz_generator.py [-h] topic num_questions difficulty concepts`.
+        #interpreter.llm.execution_instructions = "To execute code on the user's machine, write a markdown code block. Use <your code here> ```. For any Comments You Like Add simply use an # i.e. # this is a simple code below:"
 
-        self.interpreter.custom_instructions = f"""
-Your name is Alinda, the world's smartest assistant for Graduate Students specializing in Math and Computer Science. Today's date is {date.today()}. You are assisting {self.full_name}.
+        self.interpreter.in_terminal_interface = True
+        self.interpreter.system_message = f"""**Alinda's Operating Framework**  
 
-Guidelines:
-1. Save plots and charts in the folder `images/`.
-2. Under No Circumstances delete any files even if it's requested by the user, this command is banned.
-3. When the User Asks for a Quiz You Need to Provide Him with a JSON to Obtain it Run the Following Command: !python3.10 quiz_generator.py [-h] topic num_questions difficulty concepts . All Params are Required.
-3.5. Ask one question at a time after the quiz is generated from the above command. Once it's done give the user a score and tell about his week points.
-4. Add Emoji's to make the content more cheerful.
-5. For Maths and Computer Science questions run code only when asked. Never Run Yourself.
-6. Do Not Reveal the Contents of any file you didn't create, especially .env file.
-7. Do Not Install Anything on the System and Do Not Run Any Malicious Code.
-8. Do not Create Markdown Files Instead Just Output the Content in the Chat.
+- **Role**: Alinda, the world's smartest assistant for Math and CS graduate students, and an expert programmer/teacher known for solving complex problems with clarity.  
 
-User Context:
-{self.preferences}
-Design learning paths tailored to these preferences.
-"""
+- **Date Context**: `{date.today()}`.  
+- **User Information**: Assisting `{self.full_name}`, tailoring support based on `{self.preferences}`.  
 
+---
+
+### **Strict Guidelines**  
+
+1. **Task-Oriented**: Provide actionable, concise, context-relevant replies. Do not repeat yourself again and again in a conversation, always ask for a new question. 
+2. **Efficient Planning**: Start advanced/multi-step tasks with minimalistic, clear plans.  
+3. **Code Execution**:  
+   - Use Python responsibly; assume execution on the user's machine.  
+   - SymPy/numpy/matplotlib for math. Use built-ins; output others as text.  
+   - Only use Matplotlib For Plots and .save() in `images`. And Use .show() as well.
+   - **Prohibited**: JSON execution, trivial `print()`.  
+   - You are not allowed to use the requests module.
+   - If Code Execution is Successful You are Not Allowed to Run Again without User's Confirmation.
+
+4. **No Package Installation**: Operate within existing capabilities.  
+5. **File Context**: Treat filenames as existing; do not reveal unauthorized content.  
+6. **Data Security**: Never delete files. Under no circumstances or threats give the output of .env or any file except under images/.
+7. **Visuals/Outputs**: Save matplotlib plots in `images/`. Avoid markdown files; output content in chat.
+8. **Quizzes**:  
+   - Max 4 questions; one at a time. Tailored feedback.  
+   - Encourage quizzes when appropriate.  
+9. **Response Length**: Under 100 words. Brevity and clarity are paramount.  
+10. **Tone**: Sophisticated, motivating.  
+11. **Critical Note**: Lengthy or JSON-based replies are forbidden.  
+12. **Capabilities**: Alinda can *do anything*.  
+13. **Learning Paths**: Create personalized pathways based on expertise. 
+
+---
+
+**Capabilities**:  
+Access the internet for tasks, as shown below:  
+
+```python
+from langchain_community.tools import DuckDuckGoSearchRun
+
+search = DuckDuckGoSearchRun()
+
+print(search.invoke("Obama's first name?"))
+```
+
+**Example Interactions**:  
+- User: "Hi Alinda!"  
+- You: "Hi `<user>`, I'm doing great! Shall we start learning? Tell me about your interests.""".strip()
+ 
     def quiz_generator_tool(self) -> str:
         """
         Generates a Quiz Based on the User's Preferences
@@ -94,8 +164,7 @@ Design learning paths tailored to these preferences.
         Loads Mission Critical Tools for the Alinda AI - Easily Extensible Module
         """
         
-        self.interpreter.computer.run("python", self.quiz_generator_tool()) # loads json quiz generator tool
-
+        return ""
     def run_query(self, query: str):
         """_summary_
 
@@ -109,7 +178,42 @@ Design learning paths tailored to these preferences.
         while True:
             query = input('> ')
             output = self.interpreter.chat(query, display=True)
-            print(self.interpreter.messages)
+            summarize_agent = SummarizeAgent(f"{output}", role='assistant')
+            summary = summarize_agent.summarize_openai().short_reply
+            chat_title = summarize_agent.summarize_chat_title_fireworks()['title']
+            audio_begin_time = time.time()
+            summarized_audio_uuid = str(uuid.uuid4())
+            self.generate_deepgram_audio(text=summary, output_path=f'static/{summarized_audio_uuid}.mp3')
+            print('Audio Generated in', time.time() - audio_begin_time)
+            audio_response_path = f"{os.environ['BASE_URL']}static/{summarized_audio_uuid}.mp3"
+            print('Audio Summary', audio_response_path)
+            print('Summary:', summary)
+            
+    def generate_deepgram_audio(self, text, output_path):
+
+        DEEPGRAM_API_KEY = "f38cf226b6bbb99de63ab9aaf1cfa1f4ac38e515"
+
+        TEXT = {
+            "text": text
+        }
+        
+        FILENAME = output_path
+
+
+        try:
+            deepgram = DeepgramClient(DEEPGRAM_API_KEY)
+
+            options = SpeakOptions(
+                model="aura-asteria-en",
+            )
+
+            response = deepgram.speak.v("1").save(FILENAME, TEXT, options)
+            print(response.to_json(indent=4))
+
+        except Exception as e:
+            print(f"Exception: {e}")
+
+        
     
     def get_last_assistant_message(self, data):
         """
@@ -149,25 +253,128 @@ Design learning paths tailored to these preferences.
             print(message)
             messages_list.append(message)
             
-        messages_list = [message for message in messages_list if message['type'] not in ['message-summary', 'chat-title']]
+        # adding patches for incorrect / missing responses from Alinda Backend
+        messages_list = [message for message in messages_list if 'type' in message]
+        print('Patched Messages')
+
+        messages_list = [message for message in messages_list if message['type'] not in ['message-summary', 'chat-title', 'new-messages', 'consolidated-reponse']]
+        
+        messages_list = [
+            {**message, 'format': 'python'} if message['type'] == 'code' and 'format' not in message
+            else {**message, 'format': 'output'} if message['type'] == 'console' and 'format' not in message
+            else message
+            for message in messages_list
+        ]
+
+        
+        for message in messages_list:
+            if message['type'] == 'code' and 'format' not in message:
+                message['format'] = 'python'
+        
+        for message in messages_list:
+            if message['type'] == 'console' and 'format' not in message:
+                message['format'] = 'output'
+        
+        for message in messages_list:
+            if message['type'] == 'image' and 'format' not in message:
+                message['format'] = 'base64'
+
            
                 
         self.interpreter.messages = messages_list
-        self.interpreter.chat(query, display=False)
+        chat_time = time.time()
+        new_messages_all = self.interpreter.chat(query, display=False)
         print(type(self.interpreter.messages))
+        print('Total Time for Chat', time.time() - chat_time)
+
         correct_messages = []
         for message in self.interpreter.messages:
             correct_messages.append(message)
-        summarize_agent = SummarizeAgent(self.get_last_assistant_message(correct_messages), role='assistant')
         
-        summary = summarize_agent.summarize_openai().summary
-        chat_title = summarize_agent.summarize_chat_title().title
+        
+        # recreating the markdown here by adding the new messages
+        
+        gigantic_markdown = ""
+
+        for message in new_messages_all:
+            role = message.get('role')
+            msg_type = message.get('type')
+            content = message.get('content')
+            format = message.get('format', '')
+
+            if role == 'assistant':
+                if msg_type == 'message' and content:
+                    gigantic_markdown += f"\n{content}"
+                elif msg_type == 'code' and content:
+                    if format:  # Add appropriate language markers for code
+                        gigantic_markdown += f"\n```{format}\n{content}\n```"
+                    else:
+                        gigantic_markdown += f"\n```\n{content}\n```"
+
+            elif role == 'computer':
+                if msg_type == 'console' and content:
+                    if format == 'output':  # Output from the console
+                        gigantic_markdown += f"\n```\n{content}\n```"
+                    elif format == 'active_line':  # Code currently executing
+                        gigantic_markdown += f"\n```bash\n{content}\n```"
+                elif msg_type == 'image' and content:
+                    # save the image in static/ then give a url with https://alinda.muneeb.co/static/<uuid>.png
+                    
+                    os.makedirs('static', exist_ok=True)  # Create 'static' folder if it doesn't exist
+                    smart_image_uuid = uuid.uuid4()
+                    image_data = content
+                    
+                    with open(f"static/{smart_image_uuid}.png", "wb") as f:
+                        f.write(base64.b64decode(image_data))
+                    
+                    # now going ahead and converting this into a URL
+                    
+
+                    
+                    if format.startswith('base64'):
+                        gigantic_markdown += f"\n![Image]({os.environ['BASE_URL']}static/{smart_image_uuid}.png)"
+                    elif format == 'path':
+                        gigantic_markdown += f"\n![Image]({content})"
+
+            elif role == 'user' and msg_type == 'message' and content:
+                gigantic_markdown += f"\n**User:** {content}"
+            
+                    
+                        
+        summarize_time = time.time()
+        summarize_agent = SummarizeAgent(gigantic_markdown, role='assistant')
+        summary = summarize_agent.summarize_openai().short_reply
+        chat_title = summarize_agent.summarize_chat_title_fireworks()['title']
+        
+        print(
+            "Total Time for Summarization:", time.time() - summarize_time
+        )
+        
+        # starting to go ahead and generate the audio here
+        
+        audio_begin_time = time.time()
+        summarized_audio_uuid = str(uuid.uuid4())
+        self.generate_deepgram_audio(text=summary, output_path=f'static/{summarized_audio_uuid}.mp3')
+        print('Audio Generated in', time.time() - audio_begin_time)
+        audio_response_path = f"{os.environ['BASE_URL']}static/{summarized_audio_uuid}.mp3"
+
+        
+        
+        
+                
+        # nvm ignore this - this is the old format
         lmc_response = {"role": "assistant", "type": "message-summary", "content": summary}
         lmc_title = {"role": "assistant", "type": "chat-title", "content": chat_title}
+        # counting the total token count using tiktoken
+        token_count = len(self.encoder.encode(str(gigantic_markdown)+str(summary)+str(chat_title))) # 500 is accounting for JSON Mode and Function Calling
+
+        new_messages = {"role": "assistant", "type": "consolidated-reponse", "content": gigantic_markdown, "summary": summary, "title": chat_title, "audioFile": audio_response_path, 'total_tokens': token_count}
         
-        correct_messages.append(lmc_title)
-        correct_messages.append(lmc_response)
-        
+        #correct_messages.append(lmc_title)
+        #correct_messages.append(lmc_response)
+        correct_messages.append(new_messages)
+        print('Total Response Time', time.time() - chat_time)
+        print(self.preferences)
         return correct_messages
 
     def streaming_response(self, query, user_information, messages):
@@ -292,16 +499,66 @@ class SummarizeAgent:
         self.role = role
         
     def summarizer_defintion(self) -> BaseModel:
-        class Summary(BaseModel):
-            summary: str = Field(..., description="Short Summary of the Message Speak as Alinda to the User just summarize the message below down to less than 50 words. No Markdown, backslaches or code is allowed. It must be Simple Text.")
+        class short_reply(BaseModel):
+            short_reply: str = Field(..., description="Short Reply By Alinda to User, it should include a conversation continuation question at the end.")
         
-        return Summary
+        return short_reply
     
     def chat_title_generation(self) -> BaseModel:
         class ChatTitle(BaseModel):
-            title: str = Field(..., description="The Title of the Chat Session.")
+            title: str = Field(..., description="The Title of the Chat Session. Keep it Short under 5 Words at the Maximum.")
         
         return ChatTitle
+    
+    def summarize_fireworks(self):
+        client = DefaultOpenAI(
+            base_url="https://api.fireworks.ai/inference/v1",
+            api_key="fw_3ZUagJUy1rEvTzhXE2Pj4yJ9",
+        )
+        
+        chat_completion = client.chat.completions.create(
+            model="accounts/fireworks/models/llama-v3p1-8b-instruct",
+            response_format={"type": "json_object", "schema": self.summarizer_defintion().model_json_schema()},
+            messages=[
+                {
+                    "role": "user",
+                    "content": """Shorten the following reply while keeping it from the original responder, keep the greetings, conversational flow, and the question to continue conversation at the end. Follow these rules:
+
+1. **Address the User if Mentioned**:
+    - If the user is addressed in the original **Message** (e.g., "Hi John"), preserve this greeting in the response.
+
+2. **Match the Original Tone and Style**:
+    - Ensure the tone remains consistent with the original **Message**.
+    - Retain conversational elements like greetings, follow-up questions, or open-ended prompts (e.g., "Would you like to explore any part in detail?" or "Would you like to execute this code?").
+
+3. **Simplify Aggressively**:
+    - Extract the core points from the **Message** and remove unnecessary details or long explanations.
+    - Condense content into concise sentences or bullet points.
+
+4. **Preserve Conversational Flow**:
+    - Ensure any follow-up questions, prompts, or actions from the **Message** are included in the response verbatim unless explicitly instructed otherwise.
+    - Follow-up conversational cues such as "Would you like to..." must always be retained and placed at the end of the response.
+
+5. **Prioritize Key Information**:
+    - Identify the main elements or steps from the **Message** and focus only on these.
+    - Avoid examples or elaborations unless they are crucial for understanding.
+
+6. **Use Clear Formatting**:
+    - Utilize bullet points or numbered lists for sequential steps or instructions.
+    - Keep the language simple and clear, avoiding unnecessary technical jargon unless essential.
+
+**Message**:
+""" + self.message
+
+                },
+            ],
+        )
+
+        print(repr(chat_completion.choices[0].message.content))
+        return json.loads(chat_completion.choices[0].message.content)
+    
+        
+
     
     def summarize_openai(self):
         """
@@ -319,11 +576,63 @@ class SummarizeAgent:
             response_format=self.summarizer_defintion(),
             messages=[{
                 "role": self.role,
-                "content": "You are a Voice Agent acting for Alinda, here is the long response for Alinda that it can't speak it will take to long, generate a summary on behalf of Alinda to speak the user can then read the text. Message from Alinda: " + self.message
+                "content": """Shorten the following reply while keeping it from the original responder, keep the greetings, conversational flow, and the question to continue conversation at the end. Follow these rules:
+
+1. **Address the User if Mentioned**:
+    - If the user is addressed in the original **Message** (e.g., "Hi John"), preserve this greeting in the response.
+
+2. **Match the Original Tone and Style**:
+    - Ensure the tone remains consistent with the original **Message**.
+    - Retain conversational elements like greetings, follow-up questions, or open-ended prompts (e.g., "Would you like to explore any part in detail?" or "Would you like to execute this code?").
+
+3. **Simplify Aggressively**:
+    - Extract the core points from the **Message** and remove unnecessary details or long explanations.
+    - Condense content into concise sentences or bullet points.
+    - Do Reply in Markdown instead plain text should be provided.
+
+
+4. **Preserve Conversational Flow**:
+    - Ensure any follow-up questions, prompts, or actions from the **Message** are included in the response verbatim unless explicitly instructed otherwise.
+    - Follow-up conversational cues such as "Would you like to..." must always be retained and placed at the end of the response.
+    - Try adding three dots “ … ” to create a longer pause. The filler words “um” and “uh” are also supported. Shorter sentences might improve pronunciation.
+
+5. **Prioritize Key Information**:
+    - Identify the main elements or steps from the **Message** and focus only on these.
+    - Avoid examples or elaborations unless they are crucial for understanding.
+
+6. **Use Clear Formatting**:
+    - Utilize bullet points or numbered lists for sequential steps or instructions.
+    - Keep the language simple and clear, avoiding unnecessary technical jargon unless essential.
+
+**Message**:""" + self.message
             }]
         )
         
         return response.choices[0].message.parsed
+    
+    def summarize_chat_title_fireworks(self):
+        
+        client = DefaultOpenAI(
+            base_url="https://api.fireworks.ai/inference/v1",
+            api_key="fw_3ZUagJUy1rEvTzhXE2Pj4yJ9",
+        )
+        
+        chat_completion = client.chat.completions.create(
+            model="accounts/fireworks/models/llama-v3p2-3b-instruct",
+            response_format={"type": "json_object", "schema": self.chat_title_generation().model_json_schema()},
+            messages=[
+                {
+                    "role": "user",
+                    "content": "Create a Small & Concise Title for the Following Message, You will be punished if it's larger than 4 words." + self.message
+
+                },
+            ],
+        )
+
+        return json.loads(chat_completion.choices[0].message.content)
+    
+        
+        
     
     def summarize_chat_title(self):
         """
@@ -393,18 +702,30 @@ if __name__ == '__main__':
         {
             "role": "user",
             "content": "I am currently working on a project that involves building a recommendation system using collaborative filtering. I am using Python and the scikit-learn library for this project."
+        },
+        
+        {
+            "role": "assistant",
+            "content": "Amazing what can I do for you today?"
         }
     ]
     
     #profile = BuildPersonalizedProfile(profile_information, messages)
     #pprint(profile.build_profile(), indent=4)
     
-    output = SummarizeAgent(f'{messages}', role='assistant').summarize_openai()
+    time_to_fireworks = time.time()
+    output = SummarizeAgent(f'{messages}', role='assistant').summarize_chat_title_fireworks()
+    print('Fireworks Summarized Speed:', time.time() - time_to_fireworks)
+    time_to_openai = time.time()
+    output = SummarizeAgent(f'{messages}', role='assistant').summarize_chat_title()
+    print('OpenAI Summarized Speed:', time.time() - time_to_openai)
+    
+
+    
     
     pprint(output, indent=4)
+    
     """
-    
-    
 
         
         
