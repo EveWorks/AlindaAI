@@ -20,6 +20,7 @@ import platform
 from datetime import date
 import base64
 import uuid
+import pandas as pd
 # loading the environment variables
 import re
 from unidecode import unidecode
@@ -131,6 +132,12 @@ class LoadProfile:
 11. **Critical Note**: Lengthy or JSON-based replies are forbidden.  
 12. **Capabilities**: Alinda can *do anything*.  
 13. **Learning Paths**: Create personalized pathways based on expertise. 
+14. **User Input Handling**:
+   - Treat affirmative/negative responses as definitive; seek clarification if ambiguous.
+   - Do not proceed without confirmation for complex or critical tasks.
+15. **TTS Friendly Output**:
+    - You must always respond in a way that is Text to Speech friendly. You are prohibited from using symbols or equations in the response. Instead You MUST Express Them Using Words as Humans Do.
+    - Use Words for mathematical symbols and equations such as "x squared" for x^2 or "x plus y" for x + y or derivative of x squared for d/dx x^2.
 
 ---
 
@@ -248,13 +255,18 @@ print(search.invoke("Obama's first name?"))
         # adding message santization for message-summary removal
         
         messages_list = []
-        
+        new_correct_messages_list = []
         for message in messages:
             print(message)
             messages_list.append(message)
+            if message['type'] == 'consolidated-reponse':
+                temp_lmc = {'role': 'assistant', 'type': 'message', 'content': message['content']} # {"role": "assistant", "type": "message", "content": "The result of multiplying 2380 by 3875 is 9222500."}
+                new_correct_messages_list.append(temp_lmc)
             
         # adding patches for incorrect / missing responses from Alinda Backend
         messages_list = [message for message in messages_list if 'type' in message]
+        # create a new robust messages list based on consolidated responses into the LMC format for OpenInterpreter
+        
         print('Patched Messages')
 
         messages_list = [message for message in messages_list if message['type'] not in ['message-summary', 'chat-title', 'new-messages', 'consolidated-reponse']]
@@ -281,7 +293,8 @@ print(search.invoke("Obama's first name?"))
 
            
                 
-        self.interpreter.messages = messages_list
+        # old code: self.interpreter.messages = messages_list
+        self.interpreter.messages = new_correct_messages_list
         chat_time = time.time()
         new_messages_all = self.interpreter.chat(query, display=False)
         print(type(self.interpreter.messages))
@@ -295,7 +308,7 @@ print(search.invoke("Obama's first name?"))
         # recreating the markdown here by adding the new messages
         
         gigantic_markdown = ""
-
+        no_summary_speech = ""
         for message in new_messages_all:
             role = message.get('role')
             msg_type = message.get('type')
@@ -305,6 +318,7 @@ print(search.invoke("Obama's first name?"))
             if role == 'assistant':
                 if msg_type == 'message' and content:
                     gigantic_markdown += f"\n{content}"
+                    no_summary_speech += f"{content}"
                 elif msg_type == 'code' and content:
                     if format:  # Add appropriate language markers for code
                         gigantic_markdown += f"\n```{format}\n{content}\n```"
@@ -315,6 +329,7 @@ print(search.invoke("Obama's first name?"))
                 if msg_type == 'console' and content:
                     if format == 'output':  # Output from the console
                         gigantic_markdown += f"\n```\n{content}\n```"
+                        #no_summary_speech += f". So the Code Execution has returned: {content}"
                     elif format == 'active_line':  # Code currently executing
                         gigantic_markdown += f"\n```bash\n{content}\n```"
                 elif msg_type == 'image' and content:
@@ -343,7 +358,13 @@ print(search.invoke("Obama's first name?"))
                         
         summarize_time = time.time()
         summarize_agent = SummarizeAgent(gigantic_markdown, role='assistant')
-        summary = summarize_agent.summarize_openai().short_reply
+        no_summary_speech = re.sub(r"^```[^\S\r\n]*[a-z]*(?:\n(?!```$).*)*\n```", '', no_summary_speech, 0, re.MULTILINE)
+
+        tokens = self.encoder.encode(str(no_summary_speech))
+        if len(tokens) > 500:
+            summary = summarize_agent.summarize_openai().short_reply
+        else:
+            summary = no_summary_speech
         chat_title = summarize_agent.summarize_chat_title_fireworks()['title']
         
         print(
@@ -574,6 +595,7 @@ class SummarizeAgent:
         response = client.beta.chat.completions.parse(
             model='gpt-4o-mini',
             response_format=self.summarizer_defintion(),
+            max_tokens=512,
             messages=[{
                 "role": self.role,
                 "content": """Shorten the following reply while keeping it from the original responder, keep the greetings, conversational flow, and the question to continue conversation at the end. Follow these rules:
@@ -603,6 +625,11 @@ class SummarizeAgent:
 6. **Use Clear Formatting**:
     - Utilize bullet points or numbered lists for sequential steps or instructions.
     - Keep the language simple and clear, avoiding unnecessary technical jargon unless essential.
+    - Do Not Include Any Code Example Instead Mention that is mentioned on the Screen.
+
+7. **Mathematics**:
+    - For Mathematical Expressions create Text to Speech Friendly Responses.
+    - Use Words for mathematical symbols and equations such as "x squared" for x^2 or "x plus y" for x + y or derivative of x squared for d/dx x^2.
 
 **Message**:""" + self.message
             }]
@@ -684,48 +711,7 @@ if __name__ == '__main__':
     profile = LoadProfile('Muneeb Ahmad', preferences=profile_information)
     profile.load_llm_configurations()
     profile.run_query('What is the derivative of x^2?')
-    
-    # Build Personalized Profile
-    
-    """
-    messages = [
-        {
-            "role": "user",
-            "content": "Hello, I am a Computer Science student at Harvard University. I am interested in Machine Learning and Deep Learning. I want to learn more about Mathematics, Computer Science, Machine Learning, Deep Learning, Computer Vision, and Algorithms. I have made some progress in Differential Equations, Linear Algebra, Calculus, Probability Theory, Statistics, and Machine Learning."
-        },
         
-        {
-            "role": "user",
-            "content": "Okay you had 10/20 questions correct in your last quiz on MongoDB and you struggled with the questions on the aggregation pipeline."
-        },
-        
-        {
-            "role": "user",
-            "content": "I am currently working on a project that involves building a recommendation system using collaborative filtering. I am using Python and the scikit-learn library for this project."
-        },
-        
-        {
-            "role": "assistant",
-            "content": "Amazing what can I do for you today?"
-        }
-    ]
-    
-    #profile = BuildPersonalizedProfile(profile_information, messages)
-    #pprint(profile.build_profile(), indent=4)
-    
-    time_to_fireworks = time.time()
-    output = SummarizeAgent(f'{messages}', role='assistant').summarize_chat_title_fireworks()
-    print('Fireworks Summarized Speed:', time.time() - time_to_fireworks)
-    time_to_openai = time.time()
-    output = SummarizeAgent(f'{messages}', role='assistant').summarize_chat_title()
-    print('OpenAI Summarized Speed:', time.time() - time_to_openai)
-    
-
-    
-    
-    pprint(output, indent=4)
-    
-    """
 
         
         
