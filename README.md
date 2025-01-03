@@ -294,6 +294,50 @@ This will start the server at `http://localhost:6969`. 🌍
 
 ---
 
+### High-Level Usage (Alinda)
+
+```python
+from alinda_agent import LoadProfile
+
+    profile_information =  {
+        'major': 'Computer Science',
+        'degree': 'Bachelor',
+        'school': 'Harvard University',
+        'year': '2023',
+        'interests': ['Machine Learning', 'Algorithms'],
+        'wants_to_learn': ['Mathematics', 'Computer Science', 'Machine Learning', 'Deep Learning', 'Computer Vision', 'Algorithms'],
+        'previous_progress': {
+            'differential_equations': '50%',
+            'linear_algebra': '75%',
+            'calculus': '100%',
+            'probability_theory': '25%',
+            'statistics': '50%',
+            'machine_learning': '25%',
+        }
+    }
+    
+    
+    profile = LoadProfile('Muneeb Ahmad', preferences=profile_information)
+    profile.load_llm_configurations()
+    profile.run_query('What is the derivative of x^2?')
+
+```
+
+### High-Level Usage (Personalization Endpoint)
+
+```python
+
+from alinda_agent import BuildPersonalizedProfile
+
+personlize_agent = BuildPersonalizedProfile(query_request.model_dump(), messages=query_request.messages)
+output = personlize_agent.build_profile()
+
+```
+
+## Voice Integration (Deepgram)
+
+AlindaAI has now been integrated to use Deepgrams TTS Models for <0.5 second audio generations. It also features a Voice Agent Mode that ensures all text generated sounds natural.
+
 ## Security & Sandboxing
 
 Below are some of the services we can integrate in the next release for true sandboxing & running the code.
