@@ -338,6 +338,17 @@ output = personlize_agent.build_profile()
 
 AlindaAI has now been integrated to use Deepgrams TTS Models for <0.5 second audio generations. It also features a Voice Agent Mode that ensures all text generated sounds natural.
 
+### Installation (Linux Only)
+
+
+AlindAI has been designed for Ubuntu 20.04 LTS, you can also deploy this on any supported Debian Distro. 4GB RAM and 1 Core are Required Minimum, but you can take this even lower.
+
+```bash
+python -m venv venv
+source venv/bin/python3
+pip install -r requirements.txt
+```
+
 ## Security & Sandboxing
 
 Below are some of the services we can integrate in the next release for true sandboxing & running the code.
