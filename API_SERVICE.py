@@ -98,6 +98,15 @@ async def get_image(file_uuid: str):
         return FileResponse(file_path, media_type="audio/mpeg")
     return {"error": "File not found"}
 
+@app.get("/static/{file_uuid}.aac")
+async def get_image(file_uuid: str):
+    """
+    Serve a AAC file from the 'static' folder.
+    """
+    file_path = os.path.join('static', f"{file_uuid}.aac")
+    if os.path.exists(file_path):
+        return FileResponse(file_path, media_type="audio/aac")
+    return {"error": "File not found"}
 
 
 @app.post("/query/")

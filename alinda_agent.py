@@ -26,6 +26,8 @@ import re
 from unidecode import unidecode
 from deepgram import DeepgramClient, SpeakOptions
 import tiktoken
+from litellm.budget_manager import BudgetManager
+
 def transliterate_and_remove_non_alphanumeric(input_string):
     # Transliterate to ASCII
     ascii_string = unidecode(input_string)
@@ -190,9 +192,9 @@ print(search.invoke("Obama's first name?"))
             chat_title = summarize_agent.summarize_chat_title_fireworks()['title']
             audio_begin_time = time.time()
             summarized_audio_uuid = str(uuid.uuid4())
-            self.generate_deepgram_audio(text=summary, output_path=f'static/{summarized_audio_uuid}.mp3')
+            self.generate_deepgram_audio(text=summary, output_path=f'static/{summarized_audio_uuid}.aac')
             print('Audio Generated in', time.time() - audio_begin_time)
-            audio_response_path = f"{os.environ['BASE_URL']}static/{summarized_audio_uuid}.mp3"
+            audio_response_path = f"{os.environ['BASE_URL']}static/{summarized_audio_uuid}.aac"
             print('Audio Summary', audio_response_path)
             print('Summary:', summary)
             
@@ -375,9 +377,9 @@ print(search.invoke("Obama's first name?"))
         
         audio_begin_time = time.time()
         summarized_audio_uuid = str(uuid.uuid4())
-        self.generate_deepgram_audio(text=summary, output_path=f'static/{summarized_audio_uuid}.mp3')
+        self.generate_deepgram_audio(text=summary, output_path=f'static/{summarized_audio_uuid}.aac')
         print('Audio Generated in', time.time() - audio_begin_time)
-        audio_response_path = f"{os.environ['BASE_URL']}static/{summarized_audio_uuid}.mp3"
+        audio_response_path = f"{os.environ['BASE_URL']}static/{summarized_audio_uuid}.aac"
 
         
         
@@ -386,14 +388,12 @@ print(search.invoke("Obama's first name?"))
         # nvm ignore this - this is the old format
         lmc_response = {"role": "assistant", "type": "message-summary", "content": summary}
         lmc_title = {"role": "assistant", "type": "chat-title", "content": chat_title}
-        # counting the total token count using tiktoken
-        token_count = len(self.encoder.encode(str(gigantic_markdown)+str(summary)+str(chat_title))) # 500 is accounting for JSON Mode and Function Calling
-
+        # counting the total token count using tiktoken - this can be improved.
+        token_count = len(self.encoder.encode(str(self.interpreter.system_message)+str(gigantic_markdown)+str(chat_title))) # 500 is accounting for JSON Mode and Function Calling
         new_messages = {"role": "assistant", "type": "consolidated-reponse", "content": gigantic_markdown, "summary": summary, "title": chat_title, "audioFile": audio_response_path, 'total_tokens': token_count}
         
-        #correct_messages.append(lmc_title)
-        #correct_messages.append(lmc_response)
         correct_messages.append(new_messages)
+        print('Total Tokens:', token_count)
         print('Total Response Time', time.time() - chat_time)
         print(self.preferences)
         return correct_messages
