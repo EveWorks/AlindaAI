@@ -15,6 +15,14 @@ from fastapi import FastAPI, HTTPException
 import multiprocessing
 import time
 from typing import Any
+from fastapi import FastAPI, BackgroundTasks
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor
+
+
+executor = ProcessPoolExecutor(max_workers=20)
 
 #logging.basicConfig(level=logging.DEBUG)
 
@@ -109,40 +117,19 @@ async def get_image(file_uuid: str):
     return {"error": "File not found"}
 
 
+
+def load_profile(full_name: str, preferences: dict, query: str, messages: Any) -> Any:
+    profile = LoadProfile(full_name, preferences=preferences)
+    profile.load_llm_configurations()
+    answer = profile.fastapi_response(query, preferences, messages=messages)
+    return answer
+
 @app.post("/query/")
-def query(query_request: QueryRequest, summary="Query Alinda AI Model for a Standard Response. Provide Previous Messages to Load Session into Memory."):
-  
-  profile = LoadProfile(query_request.full_name, preferences=query_request.model_dump())
-  profile.load_llm_configurations()
-  answer = profile.fastapi_response(query_request.query, query_request.model_dump(), messages=query_request.messages)
-  return answer
-  
-  total_time = time.time()
-    # Create a Queue for inter-process communication
-  queue = multiprocessing.Queue()
-  
-  # Create a Process to run the query logic
-  process = multiprocessing.Process(target=process_query, args=(query_request, queue))
-  
-  # Start the process
-  process.start()
-  
-  # Wait for the process to complete with a timeout of 60 seconds
-  process.join(timeout=60)
-  
-  if process.is_alive():
-      # If process is still alive after timeout, terminate it
-      process.terminate()
-      process.join()  # Ensure the process has fully terminated
-      raise HTTPException(
-          status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-          detail="The query processing took too long and timed out.",
-      )
-  
-  # Retrieve the result from the queue
-  result: Any = queue.get()  # This will block until the result is available
-  print('Process Returned Response in', time.time() - total_time)
-  return result
+def query(query_request: QueryRequest):
+    # Submit the task to the ProcessPoolExecutor and wait for the result
+    future = executor.submit(load_profile, query_request.full_name, query_request.model_dump(), query_request.query, query_request.messages)
+    result = future.result()  # This will block until the task is complete
+    return result
 
 
 
